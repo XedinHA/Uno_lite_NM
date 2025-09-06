@@ -21,7 +21,8 @@ export function createEmptyGame(gameId: string): GameState {
 		discardPile: [],
 		currentColor: null,
 		pendingDraw: 0,
-		pendingSkip: false
+		pendingSkip: false,
+		hasDrawnThisTurn: false
 	};
 }
 
@@ -29,13 +30,13 @@ export function createEmptyGame(gameId: string): GameState {
  * Add a player to the first available slot.
  * @throws EngineError when room is full or join not allowed in current phase
  */
-export function joinGame(state: GameState, tgUserId: number): GameState {
+export function joinGame(state: GameState, tgUserId: number, displayName: string): GameState {
 	if (state.phase !== "waiting_for_players" && state.phase !== "ready_to_start") {
 		throw new EngineError("bad_phase", "Cannot join now");
 	}
 	const slot = state.players.findIndex((p) => p === null);
 	if (slot === -1) throw new EngineError("full", "Room is full");
-	const player: PlayerState = { id: `p${slot}`, tgUserId, hand: [] };
+	const player: PlayerState = { id: `p${slot}`, tgUserId, displayName, hand: [] };
 	const players = state.players.slice();
 	players[slot] = player;
 	const phase = players[0] && players[1] ? "ready_to_start" : "waiting_for_players";
@@ -50,7 +51,7 @@ export function joinGame(state: GameState, tgUserId: number): GameState {
 export function startGame(state: GameState): GameState {
 	if (state.phase !== "ready_to_start") throw new EngineError("bad_phase", "Not ready to start");
 	if (!state.players[0] || !state.players[1]) throw new EngineError("need_players", "Two players required");
-	let draw = createDeck(true);
+	let draw = createDeck();
 	const discard: Card[] = [];
 	const players: (PlayerState | null)[] = [
 		{ ...state.players[0], hand: [] } as PlayerState,
@@ -64,20 +65,11 @@ export function startGame(state: GameState): GameState {
 			(players[i] as PlayerState).hand.push(card);
 		}
 	}
-	// flip starting discard; ensure it's not wild for simplicity
-	let top: Card | null = null;
-	while (!top) {
-		const { card, newDraw } = drawOne(draw, discard);
-		draw = newDraw;
-		if (card.kind === "wild") {
-			// place into discard but need a colored start; keep trying
-			discard.push(card);
-			continue;
-		}
-		top = card;
-	}
+	// flip starting discard card (will always be a numbered card)
+	const { card: top, newDraw: finalDraw } = drawOne(draw, discard);
+	draw = finalDraw;
 	discard.push(top);
-	const currentColor = top.kind === "number" || top.kind === "action" ? top.color : null;
+	const currentColor = top.color; // top is always a numbered card
 	return {
 		...state,
 		phase: "in_progress",
@@ -88,6 +80,7 @@ export function startGame(state: GameState): GameState {
 		currentPlayerIdx: 0,
 		pendingDraw: 0,
 		pendingSkip: false,
+		hasDrawnThisTurn: false,
 		winnerId: undefined
 	};
 }
@@ -96,12 +89,13 @@ export function startGame(state: GameState): GameState {
  * Check whether a card can be legally played given current color and top card.
  */
 function isPlayable(card: Card, currentColor: Color | null, top: Card): boolean {
-	if (card.kind === "wild") return true;
-	// Matching by active color
-	if ((card.kind === "number" || card.kind === "action") && currentColor && card.color === currentColor) return true;
-	// Matching by same type value/action or color with top
-	if (card.kind === "number" && top.kind === "number") return card.value === top.value || card.color === top.color;
-	if (card.kind === "action" && top.kind === "action") return card.action === top.action || card.color === top.color;
+	// UNO Lite: only numbered cards, match by color or number
+	if (card.kind === "number") {
+		// Match by color
+		if (currentColor && card.color === currentColor) return true;
+		// Match by number with top card
+		if (top.kind === "number" && card.value === top.value) return true;
+	}
 	return false;
 }
 
@@ -126,22 +120,8 @@ export function playCard(state: GameState, tgUserId: number, handIndex: number):
 	let nextPendingDraw = 0;
 	let nextPendingSkip = false;
 	let nextPhase: Phase = state.phase;
-	let nextColor: Color | null = state.currentColor;
-
-	if (card.kind === "action") {
-		if (card.action === ActionCard.Draw2) {
-			nextPendingDraw = 2;
-			nextPendingSkip = true; // skip after draw
-		} else if (card.action === ActionCard.Skip || card.action === ActionCard.Reverse) {
-			nextPendingSkip = true;
-		}
-		nextColor = card.color;
-	} else if (card.kind === "number") {
-		nextColor = card.color;
-	} else if (card.kind === "wild") {
-		nextPhase = "await_color_choice";
-		nextColor = null;
-	}
+	// UNO Lite: only numbered cards, set color to played card's color
+	const nextColor: Color | null = card.color;
 
 	// move card to discard
 	const newDiscard = state.discardPile.concat(card);
@@ -169,15 +149,6 @@ export function playCard(state: GameState, tgUserId: number, handIndex: number):
 	};
 }
 
-/**
- * Handle color selection after a Wild is played.
- */
-export function chooseColor(state: GameState, tgUserId: number, color: Exclude<Color, Color.Wild>): GameState {
-	if (state.phase !== "await_color_choice") throw new EngineError("bad_phase", "No color choice pending");
-	const player = state.players[state.currentPlayerIdx];
-	if (!player || player.tgUserId !== tgUserId) throw new EngineError("turn", "Not your turn");
-	return { ...state, currentColor: color, phase: "in_progress" };
-}
 
 /**
  * Draw one or more cards. If a penalty is pending, draw that amount and keep
@@ -187,6 +158,11 @@ export function draw(state: GameState, tgUserId: number): GameState {
 	if (state.phase !== "in_progress") throw new EngineError("bad_phase", "Game not in progress");
 	const player = state.players[state.currentPlayerIdx];
 	if (!player || player.tgUserId !== tgUserId) throw new EngineError("turn", "Not your turn");
+	if (state.hasDrawnThisTurn) throw new EngineError("already_drawn", "Already drew a card this turn");
+	// If the player has any playable card, they must play it and cannot draw
+	const top = state.discardPile[state.discardPile.length - 1];
+	const hasPlayable = player.hand.some((c) => isPlayable(c, state.currentColor, top));
+	if (hasPlayable) throw new EngineError("has_playable", "You have a playable card in hand");
 	let drawPile = state.drawPile;
 	let discard = state.discardPile;
 	let nextPendingDraw = state.pendingDraw;
@@ -213,7 +189,8 @@ export function draw(state: GameState, tgUserId: number): GameState {
 		drawPile,
 		discardPile: discard,
 		pendingDraw: nextPendingDraw,
-		pendingSkip: nextPendingSkip
+		pendingSkip: nextPendingSkip,
+		hasDrawnThisTurn: true
 	};
 }
 
@@ -225,7 +202,8 @@ export function pass(state: GameState, tgUserId: number): GameState {
 	if (state.phase !== "in_progress") throw new EngineError("bad_phase", "Game not in progress");
 	const player = state.players[state.currentPlayerIdx];
 	if (!player || player.tgUserId !== tgUserId) throw new EngineError("turn", "Not your turn");
-	if (state.pendingDraw > 0) throw new EngineError("pending_draw", "You must draw");
+	// UNO Lite rule in this app: if you can't play you must draw first, then you may pass
+	if (!state.hasDrawnThisTurn) throw new EngineError("must_draw_first", "You must draw before passing");
 	// advance turn; apply pendingSkip effect now
 	let nextIdx: 0 | 1 = state.currentPlayerIdx === 0 ? 1 : 0;
 	let pendingSkip = state.pendingSkip;
@@ -234,7 +212,7 @@ export function pass(state: GameState, tgUserId: number): GameState {
 		nextIdx = nextIdx === 0 ? 1 : 0;
 		pendingSkip = false;
 	}
-	return { ...state, currentPlayerIdx: nextIdx, pendingSkip };
+	return { ...state, currentPlayerIdx: nextIdx, pendingSkip, hasDrawnThisTurn: false };
 }
 
 /**
@@ -249,7 +227,7 @@ export function endTurn(state: GameState): GameState {
 		nextIdx = nextIdx === 0 ? 1 : 0;
 		pendingSkip = false;
 	}
-	return { ...state, currentPlayerIdx: nextIdx, pendingSkip };
+	return { ...state, currentPlayerIdx: nextIdx, pendingSkip, hasDrawnThisTurn: false };
 }
 
 /**
@@ -260,18 +238,14 @@ export function reduce(state: GameState, action: EngineAction): GameState {
 		case "createGame":
 			return createEmptyGame(action.gameId);
 		case "joinGame":
-			return joinGame(state, action.tgUserId);
+			return joinGame(state, action.tgUserId, action.displayName);
 		case "startGame":
 			return startGame(state);
 		case "playCard": {
 			const afterPlay = playCard(state, action.tgUserId, action.handIndex);
-			// if wild, await color choice and do not advance turn
-			if (afterPlay.phase === "await_color_choice" || afterPlay.phase === "finished") return afterPlay;
+			// if game finished, return as-is, otherwise end turn
+			if (afterPlay.phase === "finished") return afterPlay;
 			return endTurn(afterPlay);
-		}
-		case "chooseColor": {
-			const after = chooseColor(state, action.tgUserId, action.color);
-			return endTurn(after);
 		}
 		case "draw":
 			return draw(state, action.tgUserId);

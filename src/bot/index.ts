@@ -2,8 +2,9 @@
  * Bot bootstrap: creates and starts the Telegram bot over long polling.
  * Provides minimal health commands and registers the full command set.
  */
-import { Bot } from "grammy";
-import { registerCommands } from "./commands.js";
+import { Bot, Keyboard, Context } from "grammy";
+import { InlineKeyboard } from "grammy";
+import { registerCommands } from "./chat_bot_commands.js";
 
 const token = process.env.BOT_TOKEN;
 if (!token) {
@@ -11,19 +12,35 @@ if (!token) {
 	process.exit(1);
 }
 
-const bot = new Bot(token);
+const bot: Bot<Context> = new Bot(token);
 
-bot.command("start", (ctx) =>
+bot.command("start", (ctx: Context) => {
+	const kb = new Keyboard()
+		.text("➕ New room")
+		.text("🔗 Join room")
+		.row()
+		.text("🃏 My hand")
+		.text("🂠 Draw")
+		.row()
+		.text("⏭️ Pass")
+		.text("📊 State")
+		.resized();
 	ctx.reply(
-		"UNO Lite bot is alive. Use /ping to test.\nSoon: /new, /join, /startgame, /hand, /play, /draw, /pass, /state."
-	)
-);
+		"UNO Lite bot is alive. Use buttons below or commands.",
+		{ reply_markup: kb }
+	);
 
-bot.command("ping", (ctx) => ctx.reply("pong 🏓"));
+	const inline = new InlineKeyboard()
+		.text("➕ New room", "new")
+		.text("❓ Help", "help_inline");
+	return ctx.reply("Quick actions:", { reply_markup: inline });
+});
+
+bot.command("ping", (ctx: Context) => ctx.reply("pong 🏓"));
 
 registerCommands(bot);
 
-bot.catch((err) => {
+bot.catch((err: unknown) => {
 	console.error("Bot error:", err);
 });
 

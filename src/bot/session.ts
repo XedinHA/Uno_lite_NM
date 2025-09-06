@@ -12,6 +12,42 @@ export type Rooms = Map<string, GameState>;
 
 export const rooms: Rooms = new Map();
 
+// Track each Telegram user's last active room to allow omitting ROOM_ID in commands
+const userLastRoom = new Map<number, string>();
+
+export function setUserLastRoom(tgUserId: number, roomId: string) {
+	userLastRoom.set(tgUserId, roomId);
+}
+
+export function getUserLastRoom(tgUserId: number): string | undefined {
+	return userLastRoom.get(tgUserId);
+}
+
+/** Remove a room and any associated state. */
+export function removeRoom(id: string): void {
+	rooms.delete(id);
+	// Note: we do not clear userLastRoom here to allow convenience reuse, but it's fine to keep.
+}
+
+// Per-chat message tracking to support clearing bot history on demand
+const chatIdToMessageIds = new Map<number, number[]>();
+
+export function trackMessageId(chatId: number, messageId: number): void {
+	const arr = chatIdToMessageIds.get(chatId) ?? [];
+	arr.push(messageId);
+	// keep only the latest 200 messages per chat to cap memory
+	if (arr.length > 200) arr.splice(0, arr.length - 200);
+	chatIdToMessageIds.set(chatId, arr);
+}
+
+export function getTrackedMessageIds(chatId: number): number[] {
+	return chatIdToMessageIds.get(chatId) ?? [];
+}
+
+export function clearTrackedMessages(chatId: number): void {
+	chatIdToMessageIds.delete(chatId);
+}
+
 /**
  * Create a new room with a short random id and initialize its game state.
  */

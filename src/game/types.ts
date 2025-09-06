@@ -40,13 +40,9 @@ export enum ActionCard {
 /**
  * Union of all possible cards in UNO Lite.
  * - number: colored numeric card 0-9
- * - action: colored action card (Skip/Reverse/Draw2)
- * - wild: colorless Wild that triggers a color choice
  */
 export type Card =
-	| { kind: "number"; color: Exclude<Color, Color.Wild>; value: NumericValue }
-	| { kind: "action"; color: Exclude<Color, Color.Wild>; action: Exclude<ActionCard, ActionCard.Wild> }
-	| { kind: "wild"; action: ActionCard.Wild };
+	| { kind: "number"; color: Exclude<Color, Color.Wild>; value: NumericValue };
 
 /**
  * Per-player state stored in a `GameState`.
@@ -57,6 +53,7 @@ export type Card =
 export interface PlayerState {
 	id: string; // room-unique
 	tgUserId: number;
+	displayName: string;
 	hand: Card[];
 }
 
@@ -67,7 +64,6 @@ export type Phase =
 	| "waiting_for_players"
 	| "ready_to_start"
 	| "in_progress"
-	| "await_color_choice"
 	| "finished";
 
 /**
@@ -91,6 +87,7 @@ export interface GameState {
 	currentColor: Color | null; // active color (esp. after wild)
 	pendingDraw: number; // e.g., from Draw2 chains; for Lite we do not stack
 	pendingSkip: boolean;
+	hasDrawnThisTurn?: boolean;
 	winnerId?: string;
 }
 
@@ -100,10 +97,9 @@ export interface GameState {
  */
 export type EngineAction =
 	| { type: "createGame"; gameId: string }
-	| { type: "joinGame"; gameId: string; tgUserId: number }
+	| { type: "joinGame"; gameId: string; tgUserId: number; displayName: string }
 	| { type: "startGame"; gameId: string }
 	| { type: "playCard"; gameId: string; tgUserId: number; handIndex: number }
-	| { type: "chooseColor"; gameId: string; tgUserId: number; color: Exclude<Color, Color.Wild> }
 	| { type: "draw"; gameId: string; tgUserId: number }
 	| { type: "pass"; gameId: string; tgUserId: number };
 

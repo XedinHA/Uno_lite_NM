@@ -7,17 +7,16 @@
 import { ActionCard, Card, Color, NumericValue } from "./types.js";
 
 /**
- * Create a new shuffled deck.
+ * Create a new shuffled deck for UNO Lite.
  *
- * Differences vs full UNO to keep the implementation compact:
- * - We include one copy of each number 0-9 per color
- * - One Skip, one Reverse, one Draw2 per color
- * - Four Wild cards (no Wild Draw4 in this Lite version)
+ * UNO Lite deck composition:
+ * - 1×0, 2×1-9 for each color (🔴 Red, 🟢 Green, 🔵 Blue, 🟡 Yellow)
+ * - No action cards (Skip, Reverse, Draw2)
+ * - No wild cards
  *
- * @param includeWild whether to include Wild cards
  * @returns a shuffled deck
  */
-export function createDeck(includeWild = true): Card[] {
+export function createDeck(): Card[] {
 	const colors: Exclude<Color, Color.Wild>[] = [
 		Color.Red,
 		Color.Yellow,
@@ -26,21 +25,12 @@ export function createDeck(includeWild = true): Card[] {
 	];
 	const deck: Card[] = [];
 
-	// Numbers: one 0, two 1-9 per color (simplify: one each to keep small)
-	const numbers: NumericValue[] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+	// Numbers: 2×1-9 per color (no zeros in this variant)
 	for (const color of colors) {
-		for (const n of numbers) {
-			deck.push({ kind: "number", color, value: n });
+		for (let n = 1; n <= 9; n++) {
+			deck.push({ kind: "number", color, value: n as NumericValue });
+			deck.push({ kind: "number", color, value: n as NumericValue });
 		}
-		// Actions: Skip, Reverse, Draw2 (one each per color)
-		deck.push({ kind: "action", color, action: ActionCard.Skip });
-		deck.push({ kind: "action", color, action: ActionCard.Reverse });
-		deck.push({ kind: "action", color, action: ActionCard.Draw2 });
-	}
-
-	if (includeWild) {
-		// 4 Wilds
-		for (let i = 0; i < 4; i++) deck.push({ kind: "wild", action: ActionCard.Wild });
 	}
 
 	return shuffle(deck);
