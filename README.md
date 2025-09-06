@@ -17,35 +17,56 @@ docker run --rm -e BOT_TOKEN=123456:ABC-Your-Telegram-Bot-Token uno-lite-bot
 ```
 
 3) Talk to the bot in Telegram:
-- /start — check welcome
+- /start — welcome, buttons
 - /ping — should reply "pong 🏓"
 - /new — create room; you'll get ROOM_ID
 - /join ROOM_ID — second player joins
-- /startgame ROOM_ID — deal cards and start
-- /state ROOM_ID — show top discard, counts, turn
-- /hand ROOM_ID — show your cards (indices)
-- /play ROOM_ID INDEX — play a card by index
-- /draw ROOM_ID — draw one (or penalty), then you may /play or /pass
-- /color ROOM_ID <red|yellow|green|blue> — choose after wild
-- /pass ROOM_ID — end your turn when allowed
+- /startgame — deal cards and start (ROOM_ID optional after you joined)
+- /state — show top discard, counts, turn (ROOM_ID optional)
+- /hand — show your cards (indices)
+- /play INDEX — play a card by index
+- /draw — draw one card (once per turn) if no playable cards
+- /pass — end your turn (only after drawing this turn)
 
-## Roadmap
-- Core game engine (pure TS) — done
-- Session management (rooms) — done
-- Commands: gameplay + rendering — done (minimal)
-- Emoji rendering — basic
+Tip: You can use inline buttons (My hand / Draw / Pass / State / Rules) to avoid typing.
+
+## Game rules (UNO Lite variant in this bot)
+- 2 players. First to empty hand wins.
+- Deck: 2×1–9 for each color (🔴 Red, 🟢 Green, 🔵 Blue, 🟡 Yellow). No 0, no action/wild cards.
+- Deal 7 cards each. Flip top card to discard to start.
+- On your turn, you must match color OR number with the top discard.
+- If you can play: play exactly one card; turn ends (unless game ends).
+- If you cannot play: draw one card (exactly once per turn). If the drawn card matches, you may immediately play it; otherwise keep it.
+- After drawing (whether you played or not), you may /pass; turn goes to the opponent.
+- If deck empties: reshuffle discard pile (except top) into new draw pile.
+
+Enforced by bot:
+- Draw is available once per turn, resets on turn change.
+- If you have a playable card, drawing is blocked (you must play).
+- Passing without drawing this turn is blocked.
+- Trying to play an unplayable card shows a clear message.
+- When game ends, both players receive a winner message; /state shows "Game over" and the winner.
+- Pressing actions on the wrong turn shows "It is another player turn".
+
+## Features
+- Inline buttons for most actions
+- Implicit ROOM_ID (bot remembers your last active room per user)
+- Emoji card rendering (color + numeric emoji)
+- Clear error messages and turn notifications
 
 ## Tech
 - Node 20, TypeScript, grammY
 - In-memory storage (single process)
 - Long polling (no webhooks)
+- Docker-only run
 
 ## Architecture
 
 - src/game: pure engine (types, deck, reducer). No Telegram dependencies.
 - src/bot: Telegram adapter (grammY), commands, in-memory rooms.
 
-State phases: `waiting_for_players` → `ready_to_start` → `in_progress` ↔ `await_color_choice` → `finished`.
+State phases: `waiting_for_players` → `ready_to_start` → `in_progress` → `finished`.
 
-UNO Lite rules implemented: match by color or value/action; Wild sets color; Skip/Reverse skip next in 2p; Draw2 forces next to draw 2 and skip. First to 0 wins.
+## Release
+- Latest tag: `Release-1.0`
 
