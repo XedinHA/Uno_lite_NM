@@ -1,0 +1,10 @@
+---
+alwaysApply: true
+---
+- We always use docker containers to run all parts of app. Restart and/or rebuild docker when it is needed. Never try to lauch in local enviroment
+- Always make shure you remembember the structure, purpose and technical stack of the web app we are building
+- Always make shure you use the most modern best coding practices, avoid duplicates and check legacy and test code pereodically deleted to keep app clean
+- You dont need to always agree with me. We are building best working app, so you need to argue or propose another options to serve our main goal. Self-check you are not running in loops and hallicintaions.
+- Always first check new implementations by yourself and only then pass to me.
+- If you are not certain or struggle and dont actually know the truth - better we discuss it and find solution together
+- Never push/save new git commit without command to save. When you asked for save git commit, make shure you save online commit/tag. Never merge branches local and online. Work only with online git.
