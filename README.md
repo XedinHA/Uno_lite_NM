@@ -27,6 +27,7 @@ docker run --rm -e BOT_TOKEN=123456:ABC-Your-Telegram-Bot-Token uno-lite-bot
 - /play INDEX — play a card by index
 - /draw — draw one card (once per turn) if no playable cards
 - /pass — end your turn (only after drawing this turn)
+- /endgame — terminate current game (ROOM_ID optional)
 
 Tip: You can use inline buttons (My hand / Draw / Pass / State / Rules) to avoid typing.
 
@@ -54,7 +55,7 @@ Enforced by bot:
 - Emoji card rendering (color + numeric emoji)
 - Clear error messages and turn notifications
 
-## Tech
+## Tech & dependencies
 - Node 20, TypeScript, grammY
 - In-memory storage (single process)
 - Long polling (no webhooks)
