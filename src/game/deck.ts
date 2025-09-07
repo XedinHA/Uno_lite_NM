@@ -4,7 +4,7 @@
  * The draw/discard piles are modeled as arrays. For the discard pile, the
  * convention is that the top card is the last element in the array.
  */
-import { ActionCard, Card, Color, NumericValue } from "./types.js";
+import { Card, Color, NumericValue } from "./types.js";
 
 /**
  * Create a new shuffled deck for UNO Lite.
@@ -17,7 +17,7 @@ import { ActionCard, Card, Color, NumericValue } from "./types.js";
  * @returns a shuffled deck
  */
 export function createDeck(): Card[] {
-	const colors: Exclude<Color, Color.Wild>[] = [
+	const colors: Color[] = [
 		Color.Red,
 		Color.Yellow,
 		Color.Green,

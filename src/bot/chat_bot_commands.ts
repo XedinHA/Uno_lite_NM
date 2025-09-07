@@ -392,9 +392,7 @@ export function registerCommands(bot: Bot<Context>) {
  * Render a short single-line representation of a card for chat.
  */
 function renderCardShort(card: any): string {
-	if (card.kind === "number") return `${colorEmoji(card.color)}${numberEmoji(card.value)}`;
-	if (card.kind === "action") return `${colorEmoji(card.color)}${actionLabel(card.action)}`;
-	return `⬛Wild`;
+	return `${colorEmoji(card.color)}${numberEmoji(card.value)}`;
 }
 
 /**
@@ -424,22 +422,6 @@ function numberEmoji(n: number): string {
 			return "9️⃣";
 		default:
 			return String(n);
-	}
-}
-
-/**
- * Map engine action names to compact labels for chat.
- */
-function actionLabel(a: string): string {
-	switch (a) {
-		case "skip":
-			return "Skip";
-		case "reverse":
-			return "Reverse";
-		case "draw2":
-			return "Draw2";
-		default:
-			return a;
 	}
 }
 

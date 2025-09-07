@@ -14,8 +14,7 @@ export enum Color {
 	Red = "red",
 	Yellow = "yellow",
 	Green = "green",
-	Blue = "blue",
-	Wild = "wild"
+	Blue = "blue"
 }
 
 /**
@@ -23,26 +22,14 @@ export enum Color {
  */
 export type NumericValue = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
-/**
- * Supported action card kinds in UNO Lite.
- * - Skip: next player loses their turn
- * - Reverse: treated as Skip in 2-player mode
- * - Draw2: next player must draw 2 and then is skipped
- * - Wild: player chooses the next active color
- */
-export enum ActionCard {
-	Skip = "skip",
-	Reverse = "reverse", // acts like Skip in 2 players
-	Draw2 = "draw2",
-	Wild = "wild"
-}
+// No action cards in this variant
 
 /**
  * Union of all possible cards in UNO Lite.
  * - number: colored numeric card 0-9
  */
 export type Card =
-	| { kind: "number"; color: Exclude<Color, Color.Wild>; value: NumericValue };
+	| { kind: "number"; color: Color; value: NumericValue };
 
 /**
  * Per-player state stored in a `GameState`.
@@ -84,7 +71,7 @@ export interface GameState {
 	currentPlayerIdx: 0 | 1;
 	drawPile: Card[];
 	discardPile: Card[];
-	currentColor: Color | null; // active color (esp. after wild)
+	currentColor: Color | null;
 	pendingDraw: number; // e.g., from Draw2 chains; for Lite we do not stack
 	pendingSkip: boolean;
 	hasDrawnThisTurn?: boolean;

@@ -2,7 +2,7 @@
  * Bot bootstrap: creates and starts the Telegram bot over long polling.
  * Provides minimal health commands and registers the full command set.
  */
-import { Bot, Keyboard, Context } from "grammy";
+import { Bot, Context } from "grammy";
 import { InlineKeyboard } from "grammy";
 import { registerCommands } from "./chat_bot_commands.js";
 
@@ -15,25 +15,10 @@ if (!token) {
 const bot: Bot<Context> = new Bot(token);
 
 bot.command("start", (ctx: Context) => {
-	const kb = new Keyboard()
-		.text("➕ New room")
-		.text("🔗 Join room")
-		.row()
-		.text("🃏 My hand")
-		.text("🂠 Draw")
-		.row()
-		.text("⏭️ Pass")
-		.text("📊 State")
-		.resized();
-	ctx.reply(
-		"UNO Lite bot is alive. Use buttons below or commands.",
-		{ reply_markup: kb }
-	);
-
 	const inline = new InlineKeyboard()
 		.text("➕ New room", "new")
 		.text("❓ Help", "help_inline");
-	return ctx.reply("Quick actions:", { reply_markup: inline });
+	return ctx.reply("UNO Lite bot is alive. Use buttons below or commands.", { reply_markup: inline });
 });
 
 bot.command("ping", (ctx: Context) => ctx.reply("pong 🏓"));

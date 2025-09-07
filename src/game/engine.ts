@@ -5,7 +5,7 @@
  * new states. There are no side effects; all mutations are functional. The
  * Telegram bot integrates with the engine via the `reduce` function.
  */
-import { ActionCard, Card, Color, EngineAction, EngineError, GameState, PlayerState, Phase } from "./types.js";
+import { Card, Color, EngineAction, EngineError, GameState, PlayerState, Phase } from "./types.js";
 import { createDeck, drawOne } from "./deck.js";
 
 /**
@@ -101,8 +101,7 @@ function isPlayable(card: Card, currentColor: Color | null, top: Card): boolean 
 
 /**
  * Attempt to play a card from the current player's hand.
- * Applies effects (Skip/Reverse/Draw2/Wild) and performs win check.
- * Does not advance the turn; the reducer will call `endTurn` unless waiting for color.
+ * Performs win check; reducer advances turn unless the game is finished.
  */
 export function playCard(state: GameState, tgUserId: number, handIndex: number): GameState {
 	if (state.phase !== "in_progress") throw new EngineError("bad_phase", "Game not in progress");
@@ -216,11 +215,10 @@ export function pass(state: GameState, tgUserId: number): GameState {
 }
 
 /**
- * Internal helper used by the reducer to advance turns after successful play
- * or after choosing a color.
+ * Internal helper used by the reducer to advance turns after successful play.
  */
 export function endTurn(state: GameState): GameState {
-	// helper to advance turn after a successful play (except wild awaiting color)
+	// helper to advance turn after a successful play
 	let nextIdx: 0 | 1 = state.currentPlayerIdx === 0 ? 1 : 0;
 	let pendingSkip = state.pendingSkip;
 	if (pendingSkip) {
